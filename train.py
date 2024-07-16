@@ -1,45 +1,58 @@
+# train.py
 import torch
 import torch.optim as optim
 import torch.nn as nn
-import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 from model import CNN
 
+# Custom DataLoader class
 class MNISTDataLoader:
     def __init__(self, batch_size=64, val_split=0.1):
+        # Transformations to be applied on the dataset
         transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+        
+        # Load the dataset
         dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+        
+        # Split the dataset into training and validation sets
         val_size = int(len(dataset) * val_split)
         train_size = len(dataset) - val_size
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+        
+        # Create DataLoader for training and validation sets
         self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+        
+        # Load the test set
         test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
         self.test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
+# Training function
 def train(model, train_loader, val_loader, epochs=10, learning_rate=0.001):
+    # Define loss function and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    train_losses = []
-    val_accuracies = []
+
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0
         for images, labels in train_loader:
+            # Zero the parameter gradients
             optimizer.zero_grad()
+            # Forward pass
             outputs = model(images)
+            # Calculate loss
             loss = criterion(outputs, labels)
+            # Backward pass and optimize
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
-        train_losses.append(running_loss / len(train_loader))
-        val_accuracy = evaluate(model, val_loader)
-        val_accuracies.append(val_accuracy)
-        print(f'Epoch [{epoch+1}/{epochs}], Loss: {running_loss/len(train_loader):.4f}, Validation Accuracy: {val_accuracy:.2f}%')
-    torch.save(model.state_dict(), 'mnist_cnn.pth')
-    plot_training(train_losses, val_accuracies)
+        
+        print(f'Epoch [{epoch+1}/{epochs}], Loss: {running_loss/len(train_loader):.4f}')
+        evaluate(model, val_loader)
 
+# Evaluation function
 def evaluate(model, val_loader):
     model.eval()
     correct = 0
@@ -50,19 +63,10 @@ def evaluate(model, val_loader):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    return 100 * correct / total
-
-def plot_training(train_losses, val_accuracies):
-    epochs = range(1, len(train_losses) + 1)
-    plt.plot(epochs, train_losses, 'bo', label='Training loss')
-    plt.plot(epochs, val_accuracies, 'b', label='Validation accuracy')
-    plt.title('Training loss and validation accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Loss/Accuracy')
-    plt.legend()
-    plt.show()
+    
+    print(f'Validation Accuracy: {100 * correct / total:.2f}%')
 
 if __name__ == '__main__':
-    # data_loader = MNISTDataLoader()
+    data_loader = MNISTDataLoader()
     model = CNN()
     train(model, data_loader.train_loader, data_loader.val_loader)
