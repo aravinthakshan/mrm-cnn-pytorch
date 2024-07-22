@@ -1,8 +1,7 @@
-# inference.py
 import torch
-from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from model import CNN
+from train import MNISTDataLoader  # Import our custom data loader
 
 # Load the trained model
 def load_model(model_path):
@@ -21,19 +20,17 @@ def predict(model, test_loader):
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-    
     print(f'Test Accuracy: {100 * correct / total:.2f}%')
 
 if __name__ == '__main__':
-    # Define the transformation for the test set
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+    # Create an instance of our custom data loader
+    data_loader = MNISTDataLoader(batch_size=64)
     
-    # Load the test set
-    test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
-    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
-    
+    # Use the test_loader from our custom data loader
+    test_loader = data_loader.test_loader
+
     # Load the trained model
     model = load_model('mnist_cnn.pth')
-    
+
     # Make predictions
     predict(model, test_loader)
